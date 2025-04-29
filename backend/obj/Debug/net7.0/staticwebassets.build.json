@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "QFuOBtWiHP5tcsFuZzd8y9tEzN4lsJMTEkLo1n2aZlg=",
+  "Source": "MedicalAesthetics.API",
+  "BasePath": "_content/MedicalAesthetics.API",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
