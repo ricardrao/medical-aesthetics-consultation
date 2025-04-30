@@ -1,122 +1,159 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Button,
   Typography,
   CircularProgress,
   Paper,
+  Alert,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import { styled } from '@mui/material/styles';
 
-interface ImageUploadProps {
-  onImageSelect: (file: File) => void;
-  onUpload: () => void;
-  loading: boolean;
-}
+const VisuallyHiddenInput = styled('input')({
+  clip: 'rect(0 0 0 0)',
+  clipPath: 'inset(50%)',
+  height: 1,
+  overflow: 'hidden',
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  whiteSpace: 'nowrap',
+  width: 1,
+});
 
-const ImageUpload: React.FC<ImageUploadProps> = ({
-  onImageSelect,
-  onUpload,
-  loading,
-}) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+const ImageUpload: React.FC = () => {
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      onImageSelect(file);
-      
-      // 创建预览URL
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
+        setSelectedImage(reader.result as string);
+        setError(null); // 清除之前的错误
+        setAnalysisResult(null); // 清除之前的结果
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const handleAnalyze = async () => {
+    if (!selectedImage) return;
+
+    setIsAnalyzing(true);
+    setError(null);
+    setAnalysisResult(null);
+    try {
+      // 移除 data:image/jpeg;base64, 前缀
+      const base64Data = selectedImage.split(',')[1];
+      
+      console.log('Sending request to backend...');
+      const response = await fetch('http://localhost:5000/api/ImageAnalysis/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          imageData: base64Data,
+          systemPrompt: "请分析这张照片中的面部特征，包括皮肤状况、皱纹、色斑等，并提供专业的医美建议。"
+        }),
+      });
+
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || '分析失败');
+      }
+
+      if (data.success) {
+        setAnalysisResult(data.analysis);
+      } else {
+        throw new Error(data.error || '分析失败');
+      }
+    } catch (error) {
+      console.error('分析错误:', error);
+      setError(error instanceof Error ? error.message : '分析过程中出现错误，请重试。');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
-    <Paper
-      elevation={3}
-      sx={{
-        p: 4,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 2,
-      }}
-    >
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: 400,
-          height: 300,
-          border: '2px dashed #ccc',
-          borderRadius: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {previewUrl ? (
-          <img
-            src={previewUrl}
-            alt="Preview"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
-        ) : (
-          <>
-            <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="body1" color="text.secondary" gutterBottom>
-              点击或拖拽图片到此处
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              支持 JPG、PNG 格式
-            </Typography>
-          </>
-        )}
-        <input
-          accept="image/*"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            opacity: 0,
-            cursor: 'pointer',
-          }}
-          type="file"
-          onChange={handleFileSelect}
-          disabled={loading}
-        />
-      </Box>
-
-      {selectedFile && (
-        <Typography variant="body2" color="text.secondary">
-          已选择: {selectedFile.name}
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h5" gutterBottom>
+          上传照片进行分析
         </Typography>
-      )}
+        
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', mb: 3 }}>
+          <Button
+            component="label"
+            variant="contained"
+            startIcon={<CloudUploadIcon />}
+            onClick={handleUploadClick}
+          >
+            选择照片
+            <VisuallyHiddenInput
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              ref={fileInputRef}
+            />
+          </Button>
 
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={onUpload}
-        disabled={!selectedFile || loading}
-        startIcon={loading ? <CircularProgress size={20} /> : null}
-      >
-        {loading ? '上传中...' : '开始分析'}
-      </Button>
-    </Paper>
+          {selectedImage && (
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <img
+                src={selectedImage}
+                alt="Selected"
+                style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
+              />
+            </Box>
+          )}
+
+          {selectedImage && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleAnalyze}
+              disabled={isAnalyzing}
+              sx={{ mt: 2 }}
+            >
+              {isAnalyzing ? <CircularProgress size={24} /> : '开始分析'}
+            </Button>
+          )}
+        </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {analysisResult && (
+          <Paper elevation={2} sx={{ p: 3, mt: 3, bgcolor: '#f5f5f5' }}>
+            <Typography variant="h6" gutterBottom>
+              分析结果
+            </Typography>
+            <Typography variant="body1" style={{ whiteSpace: 'pre-line' }}>
+              {analysisResult}
+            </Typography>
+          </Paper>
+        )}
+      </Paper>
+    </Box>
   );
 };
 
