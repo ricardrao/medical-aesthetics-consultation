@@ -53,8 +53,8 @@ const App: React.FC = () => {
       const data = await response.json();
       console.log('Response data:', data);
       
-      if (data && data.report) {
-        setReport(data.report);
+      if (data && data.analysis) {
+        setReport(data.analysis);
         setUploadSuccess(true);
       } else {
         throw new Error('服务器返回的数据格式不正确');
