@@ -19,7 +19,7 @@ public class GeminiService
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
-    public async Task<string> AnalyzeImageAsync(byte[] imageData, string systemPrompt)
+    public async Task<string> AnalyzeImageAsync(byte[] imageData, string mimeType, string systemPrompt)
     {
         try
         {
@@ -35,31 +35,23 @@ public class GeminiService
                     {
                         parts = new List<object>
                         {
-                            new
-                            {
-                                text = systemPrompt
-                            },
+                            new { text = systemPrompt },
                             new
                             {
                                 inline_data = new
                                 {
-                                    mime_type = "image/jpeg",
+                                    mime_type = mimeType,
                                     data = base64Image
                                 }
                             }
                         }
                     }
-                },
-                generation_config = new
-                {
-                    temperature = 0.4,
-                    topK = 32,
-                    topP = 1,
-                    maxOutputTokens = 2048
                 }
             };
 
             var json = JsonSerializer.Serialize(requestBody);
+            _logger.LogInformation("Gemini API 请求体: " + json);
+
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync(
