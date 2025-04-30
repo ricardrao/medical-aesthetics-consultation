@@ -1,9 +1,12 @@
+using MedicalAesthetics.API.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<GeminiService>();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -27,7 +30,10 @@ if (app.Environment.IsDevelopment())
 
 // 注释掉HTTPS重定向，使用HTTP
 // app.UseHttpsRedirection();
+
+// 确保 CORS 中间件在路由中间件之前
 app.UseCors("AllowReactApp");
+
 app.UseAuthorization();
 app.MapControllers();
 
